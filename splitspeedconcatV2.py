@@ -18,18 +18,29 @@ import os
 import shutil
 import copy
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+import argparse
+import re
 
 
-rawFile = 'Westworld.S02E01.Journey.Into.Night.720p.WEBRip.2CH.x265.HEVC-PSA.mkv'
+parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
+parser.add_argument('-i','--input_file', type=str,  help='the video file you want modified')
+parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
+parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
+parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
+
+args = parser.parse_args()
+
+
+rawFile = args.input_file
 filename = 'burned.mp4'
-srtFile = 'subs.srt'
+srtFile = args.subtitle_file
 splitOffset = 'splittedWithOffset'
 splittedInital = 'splitted'
 outputFileName = 'output.mp4'
 sped = 'sped'
 offset = 10
-dspeed = 1.5
-sspeed = 2.5
+dspeed = float(args.dialogue_speed)
+sspeed = float(args.silence_speed)
 
 subs = pysrt.open(srtFile, encoding='iso-8859-1')
 
@@ -204,7 +215,7 @@ def mainBurnSubtitles():
 
 # mainCleanup()
 
-# mainBurnSubtitles()
+mainBurnSubtitles()
 makeDirs()
 mainSplitWithOffset()
 mainSpeedUp(offset)
