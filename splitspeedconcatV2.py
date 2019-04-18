@@ -194,8 +194,6 @@ def mainSyncSubs():
     dupSubs.save('adjusted.srt', encoding='utf-8')
 
 def mainCleanup():
-    if os.path.exists(outputFileName):
-        os.remove(outputFileName)
     if os.path.exists(filename):
         os.remove(filename)
     if os.path.exists('adjusted.srt'):
@@ -208,16 +206,20 @@ def mainCleanup():
         shutil.rmtree('./'+splittedInital)
     if os.path.exists(splitOffset):
         shutil.rmtree('./'+splitOffset)
+    #if os.path.exists(outputFileName):
+    #    os.remove(outputFileName)
 
 def mainBurnSubtitles():
     command = 'ffmpeg -i '+rawFile+' -vcodec libx264 -crf 27 -preset ultrafast -c:a copy -vf subtitles='+srtFile+' '+filename
     subprocess.call(command, shell=True)
 
-# mainCleanup()
+mainCleanup()
 
 mainBurnSubtitles()
 makeDirs()
 mainSplitWithOffset()
 mainSpeedUp(offset)
 mainConcat()
+
+mainCleanup()
 # mainSyncSubs()

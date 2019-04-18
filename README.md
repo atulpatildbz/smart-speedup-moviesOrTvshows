@@ -25,3 +25,18 @@ $ pip install pysrt
 $ pip install moviepy
 ```
 
+### Usage
+
+Run the following command to get help:
+```sh
+$ python splitspeedconcatV2.py --help
+  -h, --help            show this help message and exit
+  -i INPUT_FILE, --input_file INPUT_FILE
+                        the video file you want modified
+  -s SUBTITLE_FILE, --subtitle_file SUBTITLE_FILE
+                        the subtitle file to be process on
+  -ds DIALOGUE_SPEED, --dialogue_speed DIALOGUE_SPEED
+                        the speed when someone is speaking
+  -ss SILENCE_SPEED, --silence_speed SILENCE_SPEED
+                        the speed when there is silence
+```
