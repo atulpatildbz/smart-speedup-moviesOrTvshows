@@ -21,29 +21,6 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import argparse
 import re
 
-
-parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
-parser.add_argument('-i','--input_file', type=str,  help='the video file you want modified')
-parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
-parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
-parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
-
-args = parser.parse_args()
-
-
-rawFile = args.input_file
-filename = 'burned.mp4'
-srtFile = args.subtitle_file
-splitOffset = 'splittedWithOffset'
-splittedInital = 'splitted'
-outputFileName = 'output.mp4'
-sped = 'sped'
-offset = 10
-dspeed = float(args.dialogue_speed)
-sspeed = float(args.silence_speed)
-
-subs = pysrt.open(srtFile, encoding='iso-8859-1')
-
 def makeDirs():
     os.mkdir(sped)
     os.mkdir(splittedInital)
@@ -109,6 +86,9 @@ def mainSplitWithOffset():
     i=0
     isInit = True
     for idx, t in enumerate(listOfTimes):
+        print('----------------------------------------')
+        print('Splitting progress: '+str(idx)+'/'+str(len(listOfTimes)))
+        print('----------------------------------------')
         startSecs = timeToSecs(t[0])
         endSecs = timeToSecs(t[1])
         if(startSecs>=10):
@@ -144,15 +124,23 @@ def mainSpeedUp(offset):
         command = makeSpeedCommand(splittedInital+'/'+file, sped+'/'+file, dspeed, sspeed, 0)
         subprocess.call(command, shell=True)
     listOffsetFiles = os.listdir('./'+splitOffset)
+    size = len(listOffsetFiles)
+    i=0
     for file in listOffsetFiles:
+        print('----------------------------------------')
+        print('Speedup progress(in percent): '+ str(i/size))
+        print('----------------------------------------')
         command = makeSpeedCommand(splitOffset+'/'+file, sped+'/'+file, dspeed, sspeed, offset)
         subprocess.call(command, shell=True)
+        i=i+1   #this isn't the right way to do this but i'm tired
 
 def mainConcat():
     listOffsetFiles = os.listdir('./'+sped)
     f = open('mylist.txt', 'w+')
-    for file in listOffsetFiles:
+    for idx, file in enumerate(listOffsetFiles):
         f.write('file \''+sped+'/'+file+'\'\n')
+        print('----------------------------------------')
+        print('Concatenation progress(percent): '+str(idx/len(listOffsetFiles)))
     f.close()
     command = 'ffmpeg -f concat -i mylist.txt -c copy '+outputFileName
     subprocess.call(command, shell=True)
@@ -213,7 +201,36 @@ def mainBurnSubtitles():
     command = 'ffmpeg -i '+rawFile+' -vcodec libx264 -crf 27 -preset ultrafast -c:a copy -vf subtitles='+srtFile+' '+filename
     subprocess.call(command, shell=True)
 
-mainCleanup()
+def extractSrtFromMkv():
+    command = 'ffmpeg -i '+rawFile+' -map 0:s:0 subs.srt'
+    subprocess.call(command, shell=True)
+
+parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
+parser.add_argument('-i','--input_file', type=str,  help='the video file you want modified')
+parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
+parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
+parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
+
+args = parser.parse_args()
+
+rawFile = args.input_file
+#use this code if subs are soft burned in video
+#i tried using if else logic for -s options but that didn't seem to work so for now. commenting and uncommenting is the only option
+# extractSrtFromMkv()
+# srtFile = 'subs.srt'
+srtFile = args.subtitle_file
+filename = 'burned.mp4'
+splitOffset = 'splittedWithOffset'
+splittedInital = 'splitted'
+outputFileName = 'output.mp4'
+sped = 'sped'
+offset = 10
+dspeed = float(args.dialogue_speed)
+sspeed = float(args.silence_speed)
+
+subs = pysrt.open(srtFile, encoding='iso-8859-1')
+
+# mainCleanup()
 
 mainBurnSubtitles()
 makeDirs()
