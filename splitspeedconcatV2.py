@@ -223,6 +223,12 @@ filename = 'burned.mp4'
 splitOffset = 'splittedWithOffset'
 splittedInital = 'splitted'
 outputFileName = 'output.mp4'
+for i in range(1,100):
+    if(os.path.isfile('output'+str(i)+'.mp4')):
+        continue
+    else:
+        outputFileName = 'output'+str(i)+'.mp4'
+        break
 sped = 'sped'
 offset = 10
 dspeed = float(args.dialogue_speed)
