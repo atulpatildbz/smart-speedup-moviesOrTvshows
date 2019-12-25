@@ -20,6 +20,7 @@ import copy
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import argparse
 import re
+from moviepy.editor import VideoFileClip
 
 def makeDirs():
     os.mkdir(sped)
@@ -27,6 +28,10 @@ def makeDirs():
 
 def timeToSecs(t):
     return (t.hours * 60*60) + (t.minutes*60) + t.seconds + (t.milliseconds/1000)
+
+def slowerSplit(startTime, endTime, targetname):
+    clip = VideoFileClip(filename).subclip(startTime, endTime)
+    clip.to_videofile(targetname, codec="libx264", temp_audiofile='temp-audio.m4a', remove_temp=True, audio_codec='aac')
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
     command = 'ffmpeg'
@@ -101,20 +106,29 @@ def mainSplitWithOffset():
                 command = makeSplitCommand(pysrt.srttime.SubRipTime(0,0,0,0),t[0],'s', "{0:0=5d}".format(i))
                 subprocess.call(command, shell=True)
             else:
-                ffmpeg_extract_subclip(filename, timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)), startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                if(args.use_slower_split):
+                    slowerSplit(timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)),startSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                else:
+                    ffmpeg_extract_subclip(filename, timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)), startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
         else:
             if(isInit):
                 command = makeSplitCommand(listOfTimes[idx-1][1],t[0],'s', "{0:0=5d}".format(i))
                 subprocess.call(command, shell=True)
             else:
-                ffmpeg_extract_subclip(filename, timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                if(args.use_slower_split):
+                    slowerSplit(timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                else:
+                    ffmpeg_extract_subclip(filename, timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
         i=i+1
         #for the dialogs
         if(isInit):
             command = makeSplitCommand(t[0],t[1],'d', "{0:0=5d}".format(i))
             subprocess.call(command, shell=True)
         else:
-            ffmpeg_extract_subclip(filename, startSecs - offset, endSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4')
+            if(args.use_slower_split):
+                slowerSplit(startSecs - offset, endSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4')
+            else:
+                ffmpeg_extract_subclip(filename, startSecs - offset, endSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4')
         i=i+1
 
 def mainSpeedUp(offset):
@@ -182,7 +196,7 @@ def mainSyncSubs():
     dupSubs.save('adjusted.srt', encoding='utf-8')
 
 def mainCleanup():
-    if os.path.exists(filename):
+    if os.path.exists(filename) and args.burn_subtitles:
         os.remove(filename)
     if os.path.exists('adjusted.srt'):
         os.remove('adjusted.srt')
@@ -210,16 +224,26 @@ parser.add_argument('-i','--input_file', type=str,  help='the video file you wan
 parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
 parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
 parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
+parser.add_argument('-b','--burn_subtitles', action='store_true', help='the speed when theres silence')
+parser.add_argument('--use_slower_split', action='store_true', help='use this option if the default split gives incorrect results')
 
 args = parser.parse_args()
 
 rawFile = args.input_file
+if(" " in rawFile):
+    rawFile = "\""+rawFile+"\""
 #use this code if subs are soft burned in video
 #i tried using if else logic for -s options but that didn't seem to work so for now. commenting and uncommenting is the only option
+
 # extractSrtFromMkv()
 # srtFile = 'subs.srt'
+
 srtFile = args.subtitle_file
-filename = 'burned.mp4'
+
+if(args.burn_subtitles):
+    filename = 'burned.mp4'
+else:
+    filename = rawFile
 splitOffset = 'splittedWithOffset'
 splittedInital = 'splitted'
 outputFileName = 'output.mp4'
@@ -230,15 +254,17 @@ for i in range(1,100):
         outputFileName = 'output'+str(i)+'.mp4'
         break
 sped = 'sped'
-offset = 10
 dspeed = float(args.dialogue_speed)
 sspeed = float(args.silence_speed)
-
+offset = 10
+if(args.use_slower_split):
+    offset = 0
 subs = pysrt.open(srtFile, encoding='iso-8859-1')
 
 # mainCleanup()
 
-mainBurnSubtitles()
+if(args.burn_subtitles):
+    mainBurnSubtitles()
 makeDirs()
 mainSplitWithOffset()
 mainSpeedUp(offset)
