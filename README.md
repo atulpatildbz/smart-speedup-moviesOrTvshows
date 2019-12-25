@@ -39,4 +39,8 @@ $ python splitspeedconcatV2.py --help
                         the speed when someone is speaking
   -ss SILENCE_SPEED, --silence_speed SILENCE_SPEED
                         the speed when there is silence
+  -b BURN_SUBTITLES, --burn_subtitles BURN_SUBTITLES
+                        the speed when theres silence
+  --use_slower_split USE_SLOWER_SPLIT
+                        use this option if the default split gives incorrect results
 ```
