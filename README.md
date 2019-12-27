@@ -35,6 +35,8 @@ $ python splitspeedconcatV2.py --help
                         the video file you want modified
   -s SUBTITLE_FILE, --subtitle_file SUBTITLE_FILE
                         the subtitle file to be process on
+  -emkv EXTRACT_SUBS_MKV, --extract_subs_mkv EXTRACT_SUBS_MKV
+                        extract subs from mkv
   -ds DIALOGUE_SPEED, --dialogue_speed DIALOGUE_SPEED
                         the speed when someone is speaking
   -ss SILENCE_SPEED, --silence_speed SILENCE_SPEED
@@ -43,4 +45,6 @@ $ python splitspeedconcatV2.py --help
                         the speed when theres silence
   --use_slower_split USE_SLOWER_SPLIT
                         use this option if the default split gives incorrect results
+  --no_cleanup NO_CLEANUP
+                        do not run cleanup after completion
 ```

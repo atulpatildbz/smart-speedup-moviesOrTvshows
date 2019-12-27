@@ -96,7 +96,7 @@ def mainSplitWithOffset():
         print('----------------------------------------')
         startSecs = timeToSecs(t[0])
         endSecs = timeToSecs(t[1])
-        if(startSecs>=10):
+        if(startSecs>=offset):
             #split using command
             isInit = False
 
@@ -222,10 +222,12 @@ def extractSrtFromMkv():
 parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
 parser.add_argument('-i','--input_file', type=str,  help='the video file you want modified')
 parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
+parser.add_argument('-emkv','--extract_subs_mkv', action='store_true', help='extract subs from mkv')
 parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
 parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
 parser.add_argument('-b','--burn_subtitles', action='store_true', help='the speed when theres silence')
 parser.add_argument('--use_slower_split', action='store_true', help='use this option if the default split gives incorrect results')
+parser.add_argument('--no_cleanup', action='store_true', help='do not run cleanup after completion')
 
 args = parser.parse_args()
 
@@ -235,10 +237,19 @@ if(" " in rawFile):
 #use this code if subs are soft burned in video
 #i tried using if else logic for -s options but that didn't seem to work so for now. commenting and uncommenting is the only option
 
-# extractSrtFromMkv()
-# srtFile = 'subs.srt'
 
-srtFile = args.subtitle_file
+if(args.extract_subs_mkv):
+    extractSrtFromMkv()
+    srtFile = 'subs.srt'
+else:
+    srtFile = args.subtitle_file
+
+# preprocessing. may differ case to case
+with open (srtFile, 'r') as f:
+    content = f.read()
+content_new = re.sub('\d+\n[\d:, ->]+\n\([\D]+\)\n\n', '', content)
+with open(srtFile, 'w+') as f:
+    f.write(content_new)
 
 if(args.burn_subtitles):
     filename = 'burned.mp4'
@@ -270,5 +281,6 @@ mainSplitWithOffset()
 mainSpeedUp(offset)
 mainConcat()
 
-mainCleanup()
+if(not args.no_cleanup):
+    mainCleanup()
 # mainSyncSubs()
