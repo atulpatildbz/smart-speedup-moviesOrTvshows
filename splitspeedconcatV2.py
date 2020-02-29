@@ -257,13 +257,14 @@ else:
     filename = rawFile
 splitOffset = 'splittedWithOffset'
 splittedInital = 'splitted'
-outputFileName = 'output.mp4'
-for i in range(1,100):
-    if(os.path.isfile('output'+str(i)+'.mp4')):
-        continue
-    else:
-        outputFileName = 'output'+str(i)+'.mp4'
-        break
+outputFileName = rawfile + '_output.mp4'
+if(rawFile == 'burned.mp4')
+    for i in range(1,100):
+        if(os.path.isfile('output'+str(i)+'.mp4')):
+            continue
+        else:
+            outputFileName = 'output'+str(i)+'.mp4'
+            break
 sped = 'sped'
 dspeed = float(args.dialogue_speed)
 sspeed = float(args.silence_speed)
