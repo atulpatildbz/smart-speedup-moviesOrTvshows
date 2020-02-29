@@ -258,7 +258,7 @@ else:
 splitOffset = 'splittedWithOffset'
 splittedInital = 'splitted'
 outputFileName = rawfile + '_output.mp4'
-if(rawFile == 'burned.mp4')
+if(rawFile == 'burned.mp4'):
     for i in range(1,100):
         if(os.path.isfile('output'+str(i)+'.mp4')):
             continue
