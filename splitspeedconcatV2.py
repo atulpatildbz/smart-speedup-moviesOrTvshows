@@ -247,7 +247,7 @@ else:
 # preprocessing. may differ case to case
 with open (srtFile, 'r') as f:
     content = f.read()
-content_new = re.sub('\d+\n[\d:, ->]+\n\([\D]+\)\n\n', '', content)
+content_new = re.sub('\d+\n[\d:, ->]+\n\[[\D]*\]\n\n', '', content)
 with open(srtFile, 'w+') as f:
     f.write(content_new)
 
