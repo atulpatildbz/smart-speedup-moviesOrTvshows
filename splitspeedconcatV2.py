@@ -245,9 +245,10 @@ else:
     srtFile = args.subtitle_file
 
 # preprocessing. may differ case to case
-with open (srtFile, 'r') as f:
+with open (srtFile, 'r', encoding="utf8") as f:
     content = f.read()
 content_new = re.sub('\d+\n[\d:, ->]+\n\[[\D]*\]\n\n', '', content)
+content_new = re.sub('[^A-Za-z\n\d: ->?]', '', content_new)
 with open(srtFile, 'w+') as f:
     f.write(content_new)
 
