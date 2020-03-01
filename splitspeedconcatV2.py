@@ -30,8 +30,9 @@ def timeToSecs(t):
     return (t.hours * 60*60) + (t.minutes*60) + t.seconds + (t.milliseconds/1000)
 
 def slowerSplit(startTime, endTime, targetname):
-    clip = VideoFileClip(filename).subclip(startTime, endTime)
-    clip.to_videofile(targetname, codec="libx264", temp_audiofile='temp-audio.m4a', remove_temp=True, audio_codec='aac')
+    temp_audio = rawFile + '_temp-audio.m4a'
+    clip = videoFileClip.subclip(startTime, endTime)
+    clip.to_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
     command = 'ffmpeg'
@@ -253,20 +254,13 @@ with open(srtFile, 'w+') as f:
     f.write(content_new)
 
 if(args.burn_subtitles):
-    filename = 'burned.mp4'
+    filename = rawFile + 'burned.mp4'
 else:
     filename = rawFile
-splitOffset = 'splittedWithOffset'
-splittedInital = 'splitted'
+splitOffset = rawFile + 'splittedWithOffset'
+splittedInital = rawFile + 'splitted'
 outputFileName = rawFile + '_output.mp4'
-if(rawFile == 'burned.mp4'):
-    for i in range(1,100):
-        if(os.path.isfile('output'+str(i)+'.mp4')):
-            continue
-        else:
-            outputFileName = 'output'+str(i)+'.mp4'
-            break
-sped = 'sped'
+sped = rawFile + 'sped'
 dspeed = float(args.dialogue_speed)
 sspeed = float(args.silence_speed)
 offset = 10
