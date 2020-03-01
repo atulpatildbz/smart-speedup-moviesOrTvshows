@@ -29,6 +29,16 @@ def makeDirs():
 def timeToSecs(t):
     return (t.hours * 60*60) + (t.minutes*60) + t.seconds + (t.milliseconds/1000)
 
+def _endtime_to_end_sub(seconds): 
+    millis = str(seconds-int(seconds))[2:5]
+    millis_start = str((seconds-0.5)-int((seconds-0.5)))[2:5]
+    seconds = seconds % (24 * 3600) 
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return "\n\n%02d:%02d:%02d,%s --> %02d:%02d:%02d,%s\n.\n" % (hour, minutes, seconds, millis_start, hour, minutes, seconds, millis)
+
 def slowerSplit(startTime, endTime, targetname):
     temp_audio = rawFile + '_temp-audio.m4a'
     clip = videoFileClip.subclip(startTime, endTime)
@@ -84,7 +94,7 @@ def mainSplitWithOffset():
             lastEnd = listOfTimes[-1][1]
         diff = sub.start - lastEnd
         #if next subtitle is apart by just 1 sec, ignore the gap
-        if(diff.seconds==0 and idx!=0):
+        if((diff.seconds==0 and idx!=0) or (diff < pysrt.srttime.SubRipTime(0,0,0,0))):
             listOfTimes[-1][1] = sub.end
             continue
         listOfTimes.append([sub.start,sub.end])
@@ -245,14 +255,6 @@ if(args.extract_subs_mkv):
 else:
     srtFile = args.subtitle_file
 
-# preprocessing. may differ case to case
-with open (srtFile, 'r', encoding="utf8") as f:
-    content = f.read()
-content_new = re.sub('\d+\n[\d:, ->]+\n\[[\D]*\]\n\n', '', content)
-content_new = re.sub('[^A-Za-z\n\d: ->?]', '', content_new)
-with open(srtFile, 'w+') as f:
-    f.write(content_new)
-
 if(args.burn_subtitles):
     filename = rawFile + 'burned.mp4'
 else:
@@ -266,6 +268,18 @@ sspeed = float(args.silence_speed)
 offset = 10
 if(args.use_slower_split):
     offset = 0
+
+videoFileClip = VideoFileClip(filename)
+
+# preprocessing. may differ case to case
+with open (srtFile, 'r', encoding="utf8") as f:
+    content = f.read()
+content_new = re.sub('\d+\n[\d:, ->]+\n\[[\D]*\]\n\n', '', content)
+content_new = re.sub('[^A-Za-z\n\d: ->?]', '', content_new)
+content_new = content_new + _endtime_to_end_sub(videoFileClip.duration)
+with open(srtFile, 'w+') as f:
+    f.write(content_new)
+
 subs = pysrt.open(srtFile, encoding='iso-8859-1')
 
 # mainCleanup()
