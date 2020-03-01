@@ -196,8 +196,6 @@ def mainSyncSubs():
     dupSubs.save('adjusted.srt', encoding='utf-8')
 
 def mainCleanup():
-    if os.path.exists(filename) and args.burn_subtitles:
-        os.remove(filename)
     if os.path.exists('adjusted.srt'):
         os.remove('adjusted.srt')
     if os.path.exists('mylist.txt'):
@@ -208,6 +206,8 @@ def mainCleanup():
         shutil.rmtree('./'+splittedInital)
     if os.path.exists(splitOffset):
         shutil.rmtree('./'+splitOffset)
+    if os.path.exists(filename) and args.burn_subtitles:
+        os.remove(filename)
     #if os.path.exists(outputFileName):
     #    os.remove(outputFileName)
 
