@@ -269,7 +269,7 @@ offset = 10
 if(args.use_slower_split):
     offset = 0
 
-videoFileClip = VideoFileClip(filename)
+videoFileClip = VideoFileClip(rawFile)
 
 # preprocessing. may differ case to case
 with open (srtFile, 'r', encoding="utf8") as f:
