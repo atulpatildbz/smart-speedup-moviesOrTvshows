@@ -21,6 +21,7 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import argparse
 import re
 from moviepy.editor import VideoFileClip
+import timeit
 
 def makeDirs():
     os.mkdir(sped)
@@ -230,6 +231,8 @@ def extractSrtFromMkv():
     command = 'ffmpeg -i '+rawFile+' -map 0:s:0 subs.srt'
     subprocess.call(command, shell=True)
 
+start_time = timeit.default_timer()
+
 parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
 parser.add_argument('-i','--input_file', type=str,  help='the video file you want modified')
 parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file to be process on')
@@ -294,3 +297,6 @@ mainConcat()
 if(not args.no_cleanup):
     mainCleanup()
 # mainSyncSubs()
+
+elapsed = timeit.default_timer() - start_time
+print(f"Completed! took {elapsed} amount of time")
