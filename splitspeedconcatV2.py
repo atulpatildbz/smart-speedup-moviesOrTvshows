@@ -34,16 +34,20 @@ def _endtime_to_end_sub(seconds):
     millis = str(seconds-int(seconds))[2:5]
     millis_start = str((seconds-0.5)-int((seconds-0.5)))[2:5]
     seconds = seconds % (24 * 3600) 
+    seconds_start = (seconds-0.5) % (24 * 3600) 
     hour = seconds // 3600
     seconds %= 3600
     minutes = seconds // 60
     seconds %= 60
-    return "\n\n%02d:%02d:%02d,%s --> %02d:%02d:%02d,%s\n.\n" % (hour, minutes, seconds, millis_start, hour, minutes, seconds, millis)
+    return "\n\n%02d:%02d:%02d,%s --> %02d:%02d:%02d,%s\n.\n" % (hour, minutes, seconds_start, millis_start, hour, minutes, seconds, millis)
 
 def slowerSplit(startTime, endTime, targetname):
-    clip = VideoFileClip(filename).subclip(startTime, endTime)
-    temp_audio = rawFile + '_temp-audio.m4a'
-    clip.to_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
+    try:
+        clip = VideoFileClip(filename).subclip(startTime, endTime)
+        temp_audio = rawFile + '_temp-audio.m4a'
+        clip.to_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
+    except:
+        pass
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
     command = 'ffmpeg'
