@@ -42,12 +42,12 @@ def _endtime_to_end_sub(seconds):
     return "\n\n%02d:%02d:%02d,%s --> %02d:%02d:%02d,%s\n.\n" % (hour, minutes, seconds_start, millis_start, hour, minutes, seconds, millis)
 
 def slowerSplit(startTime, endTime, targetname):
+    clip = VideoFileClip(filename).subclip(startTime, endTime)
+    temp_audio = rawFile + '_temp-audio.m4a'
     try:
-        clip = VideoFileClip(filename).subclip(startTime, endTime)
-        temp_audio = rawFile + '_temp-audio.m4a'
-        clip.to_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
+        clip.write_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
     except:
-        pass
+        clip.write_videofile(targetname, codec="libx264", audio=False)
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
     command = 'ffmpeg'
@@ -223,7 +223,11 @@ def mainCleanup():
     if os.path.exists(splitOffset):
         shutil.rmtree('./'+splitOffset)
     if os.path.exists(filename) and args.burn_subtitles:
-        os.remove(filename)
+        try:
+            os.remove(filename)
+        except:
+            print(f"Error: failed to remove {filename} you'll have to remove it manually")
+            pass
     #if os.path.exists(outputFileName):
     #    os.remove(outputFileName)
 
