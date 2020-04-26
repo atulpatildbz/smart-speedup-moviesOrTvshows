@@ -47,7 +47,10 @@ def slowerSplit(startTime, endTime, targetname):
     try:
         clip.write_videofile(targetname, codec="libx264", temp_audiofile=temp_audio, remove_temp=True, audio_codec='aac')
     except:
-        clip.write_videofile(targetname, codec="libx264", audio=False)
+        try:
+            clip.write_videofile(targetname, codec="libx264", audio=False)
+        except:
+            pass
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
     command = 'ffmpeg'
