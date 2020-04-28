@@ -301,7 +301,10 @@ subs = pysrt.open(srtFile, encoding='iso-8859-1')
 if(args.burn_subtitles):
     mainBurnSubtitles()
 makeDirs()
-mainSplitWithOffset()
+try:
+    mainSplitWithOffset()
+except:
+    pass
 mainSpeedUp(offset)
 mainConcat()
 
