@@ -24,8 +24,11 @@ from moviepy.editor import VideoFileClip
 import timeit
 
 def makeDirs():
-    os.mkdir(sped)
-    os.mkdir(splittedInital)
+    if(not args.continue_previous):
+        if(os.path.exists(sped)):
+            mainCleanup()
+        os.mkdir(sped)
+        os.mkdir(splittedInital)
 
 def timeToSecs(t):
     return (t.hours * 60*60) + (t.minutes*60) + t.seconds + (t.milliseconds/1000)
@@ -53,6 +56,9 @@ def slowerSplit(startTime, endTime, targetname):
             pass
 
 def makeSplitCommand(startTime, endTime, dors, namePrefix):
+    if(args.continue_previous and os.path.exists(splittedInital+'/'+namePrefix+'_'+dors+'.mp4')):
+        #check in the caller if this method returns false, skip the subprocess.call
+        return False
     command = 'ffmpeg'
     command = command + ' -i '+filename
     command = command + ' -vcodec libx264 -crf 27 -preset ultrafast -c:a copy'
@@ -123,37 +129,47 @@ def mainSplitWithOffset():
         if(idx==0):
             if(isInit):
                 command = makeSplitCommand(pysrt.srttime.SubRipTime(0,0,0,0),t[0],'s', "{0:0=5d}".format(i))
-                subprocess.call(command, shell=True)
+                if(command):
+                    subprocess.call(command, shell=True)
             else:
-                if(args.use_slower_split):
-                    slowerSplit(timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)),startSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
-                else:
-                    ffmpeg_extract_subclip(filename, timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)), startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4'
+                if(not args.continue_previous or not os.path.exists(targetName)):
+                    if(args.use_slower_split):
+                        slowerSplit(timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)),startSecs, targetName)
+                    else:
+                        ffmpeg_extract_subclip(filename, timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)), startSecs, targetname=targetName)
         else:
-            if(isInit):
-                command = makeSplitCommand(listOfTimes[idx-1][1],t[0],'s', "{0:0=5d}".format(i))
-                subprocess.call(command, shell=True)
-            else:
-                if(args.use_slower_split):
-                    slowerSplit(timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+            targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4'
+            if(not args.continue_previous or not os.path.exists(targetName)):
+                if(isInit):
+                    command = makeSplitCommand(listOfTimes[idx-1][1],t[0],'s', "{0:0=5d}".format(i))
+                    subprocess.call(command, shell=True)
                 else:
-                    ffmpeg_extract_subclip(filename, timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4')
+                    if(args.use_slower_split):
+                        slowerSplit(timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetName)
+                    else:
+                        ffmpeg_extract_subclip(filename, timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetname=targetName)
         i=i+1
         #for the dialogs
         if(isInit):
             command = makeSplitCommand(t[0],t[1],'d', "{0:0=5d}".format(i))
-            subprocess.call(command, shell=True)
+            if(command):
+                subprocess.call(command, shell=True)
         else:
-            if(args.use_slower_split):
-                slowerSplit(startSecs - offset, endSecs, splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4')
-            else:
-                ffmpeg_extract_subclip(filename, startSecs - offset, endSecs, targetname=splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4')
+            targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4'
+            if(not args.continue_previous or not os.path.exists(targetName)):
+                if(args.use_slower_split):
+                    slowerSplit(startSecs - offset, endSecs, targetName)
+                else:
+                    ffmpeg_extract_subclip(filename, startSecs - offset, endSecs, targetname=targetName)
         i=i+1
 
 def mainSpeedUp(offset):
     #TODO: handle initsplit from different folder too
     listOfSpliWithoutOffset = os.listdir('./'+splittedInital)
     for file in listOfSpliWithoutOffset:
+        if(args.continue_previous and os.path.exists(sped+'/'+file)):
+            continue
         command = makeSpeedCommand(splittedInital+'/'+file, sped+'/'+file, dspeed, sspeed, 0)
         subprocess.call(command, shell=True)
     listOffsetFiles = os.listdir('./'+splitOffset)
@@ -164,7 +180,8 @@ def mainSpeedUp(offset):
         print('Speedup progress(in percent): '+ str(i/size))
         print('----------------------------------------')
         command = makeSpeedCommand(splitOffset+'/'+file, sped+'/'+file, dspeed, sspeed, offset)
-        subprocess.call(command, shell=True)
+        if(not args.continue_previous or not os.path.exists(sped+'/'+file)):
+            subprocess.call(command, shell=True)
         i=i+1   #this isn't the right way to do this but i'm tired
 
 def mainConcat():
@@ -235,6 +252,8 @@ def mainCleanup():
     #    os.remove(outputFileName)
 
 def mainBurnSubtitles():
+    if(args.continue_previous and os.path.exists(filename)):
+        return
     command = 'ffmpeg -i '+rawFile+' -vcodec libx264 -crf 27 -preset ultrafast -c:a copy -vf subtitles='+srtFile+' '+filename
     subprocess.call(command, shell=True)
 
@@ -253,6 +272,7 @@ parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when the
 parser.add_argument('-b','--burn_subtitles', action='store_true', help='the speed when theres silence')
 parser.add_argument('--use_slower_split', action='store_true', help='use this option if the default split gives incorrect results')
 parser.add_argument('--no_cleanup', action='store_true', help='do not run cleanup after completion')
+parser.add_argument('--continue_previous', action='store_true', help='continue previously aborted operation')
 
 args = parser.parse_args()
 
