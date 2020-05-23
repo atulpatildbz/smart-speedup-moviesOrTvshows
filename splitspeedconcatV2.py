@@ -323,7 +323,9 @@ if(args.burn_subtitles):
 makeDirs()
 try:
     mainSplitWithOffset()
-except:
+except Exception as e:
+    print("EXCEPTION occured while splitting")
+    print(e)
     pass
 mainSpeedUp(offset)
 mainConcat()
