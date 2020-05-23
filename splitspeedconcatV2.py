@@ -96,7 +96,8 @@ def makeSpeedCommand(inFile, outFile, dspeed, sspeed, offset):
     return command
 
 def mainSplitWithOffset():
-    os.mkdir(splitOffset)
+    if(not args.continue_previous or not os.path.exists(splitOffset)):
+        os.mkdir(splitOffset)
     listOfTimes = []
 
     i=0
