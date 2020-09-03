@@ -328,6 +328,12 @@ except Exception as e:
     print("EXCEPTION occured while splitting")
     print(e)
     pass
+if(os.path.exists(f"{filename}_temp-audio.m4a")):
+    lastFileName = os.listdir(f"./{splitOffset}")[-1]
+    subprocess.call(f"ffmpeg -i ./{splitOffset}/{lastFileName} -i {filename}_temp-audio.m4a -c copy -map 0:v:0 -map 1:a:0 {lastFileName}", shell=True)
+    subprocess.call(f"rm ./{splitOffset}/{lastFileName}", shell=True)
+    subprocess.call(f"mv {lastFileName} ./{splitOffset}/{lastFileName}", shell=True)
+
 mainSpeedUp(offset)
 mainConcat()
 
