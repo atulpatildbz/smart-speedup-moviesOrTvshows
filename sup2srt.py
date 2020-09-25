@@ -3,6 +3,7 @@
 # Author: Red5d
 #
 # Description: Extract and run OCR on subtitles from a PGS-format .sup file.
+# this file doesn't use OCR, the purpose is just to use the timestamps
 #
 # Example Usage: python sup2srt.py bd_subtitles.sup bd_subtitles.srt
 #
@@ -15,18 +16,14 @@
 
 import sys, pytesseract
 from pgsreader import PGSReader
-from imagemaker import make_image
-
 from pysrt import SubRipFile, SubRipItem, SubRipTime
 
 from tqdm import tqdm
 
-supFile = sys.argv[1]
+supFile = "Better_Call_Saul_2017_Season_3_Episode_4_1080p_Blu-ray_H.265_AC3_5.1-HiDEF.mkv.sup"
 pgs = PGSReader(supFile)
 
-srtFile = ".".join(supFile.split('.')[:-1])+".srt"
-with open('myfile.txt', 'w') as fp: 
-    pass
+srtFile = "Better_Call_Saul_2017_Season_3_Episode_4_1080p_Blu-ray_H.265_AC3_5.1-HiDEF.mkv.srt"
 
 srt = SubRipFile()
 
@@ -39,23 +36,20 @@ subText = ""
 subStart = 0
 subIndex = 0
 for ds in tqdm(allsets):
-    try:
-        if ds.has_image:
-            # get Palette Display Segment
-            pds = ds.pds[0]
-            # get Object Display Segment
-            ods = ds.ods[0]
+    if ds.has_image:
+        # get Palette Display Segment
+        pds = ds.pds[0]
+        # get Object Display Segment
+        ods = ds.ods[0]
 
-            img = make_image(ods, pds)
-            subText = pytesseract.image_to_string(img, lang='eng',  config='-l eng --oem 1 --psm 7')
-            subStart = ods.presentation_timestamp
-        else:
-            startTime = SubRipTime(milliseconds=int(subStart))
-            endTime = SubRipTime(milliseconds=int(ds.end[0].presentation_timestamp))
-            srt.append(SubRipItem(subIndex, startTime, endTime, subText))
-            subIndex += 1
-    except:
-        pass
+        # img = make_image(ods, pds)
+        # subText = pytesseract.image_to_string(img)
+        subStart = ods.presentation_timestamp
+    else:
+        startTime = SubRipTime(milliseconds=int(subStart))
+        endTime = SubRipTime(milliseconds=int(ds.end[0].presentation_timestamp))
+        srt.append(SubRipItem(subIndex, startTime, endTime, "subText"))
+        subIndex += 1
 
 print(f"Done. SRT file saved as {srtFile}")
 srt.save(srtFile, encoding='utf-8')
