@@ -20,10 +20,10 @@ from pysrt import SubRipFile, SubRipItem, SubRipTime
 
 from tqdm import tqdm
 
-supFile = "Better_Call_Saul_2017_Season_3_Episode_4_1080p_Blu-ray_H.265_AC3_5.1-HiDEF.mkv.sup"
+supFile = sys.argv[1]
 pgs = PGSReader(supFile)
 
-srtFile = "Better_Call_Saul_2017_Season_3_Episode_4_1080p_Blu-ray_H.265_AC3_5.1-HiDEF.mkv.srt"
+srtFile = ".".join(supFile.split('.')[:-1])+".srt"
 
 srt = SubRipFile()
 
