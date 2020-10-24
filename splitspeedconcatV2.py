@@ -233,6 +233,8 @@ def mainSyncSubs():
     dupSubs.save('adjusted.srt', encoding='utf-8')
 
 def mainCleanup():
+    if os.path.exists('subs.srt'):
+        os.remove('subs.srt')
     if os.path.exists('adjusted.srt'):
         os.remove('adjusted.srt')
     if os.path.exists('mylist.txt'):
