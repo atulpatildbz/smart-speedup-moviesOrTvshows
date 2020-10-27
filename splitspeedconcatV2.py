@@ -22,6 +22,8 @@ import argparse
 import re
 from moviepy.editor import VideoFileClip
 import timeit
+import logging
+from datetime import datetime
 
 def makeDirs():
     if(not args.continue_previous):
@@ -117,9 +119,7 @@ def mainSplitWithOffset():
     i=0
     isInit = True
     for idx, t in enumerate(listOfTimes):
-        print('----------------------------------------')
-        print('Splitting progress: '+str(idx)+'/'+str(len(listOfTimes)))
-        print('----------------------------------------')
+        logging.info(datetime.now().strftime("%b %d,%Y %H:%M:%S")+'Splitting progress: '+str(idx)+'/'+str(len(listOfTimes)))
         startSecs = timeToSecs(t[0])
         endSecs = timeToSecs(t[1])
         if(startSecs>=offset):
@@ -177,9 +177,7 @@ def mainSpeedUp(offset):
     size = len(listOffsetFiles)
     i=0
     for file in listOffsetFiles:
-        print('----------------------------------------')
-        print('Speedup progress(in percent): '+ str(i/size))
-        print('----------------------------------------')
+        logging.info(datetime.now().strftime("%b %d,%Y %H:%M:%S")+'Speedup progress(in percent): '+ str(i/size))
         command = makeSpeedCommand(splitOffset+'/'+file, sped+'/'+file, dspeed, sspeed, offset)
         if(not args.continue_previous or not os.path.exists(sped+'/'+file)):
             subprocess.call(command, shell=True)
@@ -190,8 +188,7 @@ def mainConcat():
     f = open('mylist.txt', 'w+')
     for idx, file in enumerate(listOffsetFiles):
         f.write('file \''+sped+'/'+file+'\'\n')
-        print('----------------------------------------')
-        print('Concatenation progress(percent): '+str(idx/len(listOffsetFiles)))
+        logging.info(datetime.now().strftime("%b %d,%Y %H:%M:%S")+'Concatenation progress(percent): '+str(idx/len(listOffsetFiles)))
     f.close()
     command = 'ffmpeg -f concat -i mylist.txt -c copy '+outputFileName
     subprocess.call(command, shell=True)
@@ -249,7 +246,7 @@ def mainCleanup():
         try:
             os.remove(filename)
         except:
-            print(f"Error: failed to remove {filename} you'll have to remove it manually")
+            logging.error(f"{datetime.now().strftime('%b %d,%Y %H:%M:%S')} Error: failed to remove {filename} you'll have to remove it manually")
             pass
     #if os.path.exists(outputFileName):
     #    os.remove(outputFileName)
@@ -285,6 +282,7 @@ if(" " in rawFile):
 #use this code if subs are soft burned in video
 #i tried using if else logic for -s options but that didn't seem to work so for now. commenting and uncommenting is the only option
 
+logging.basicConfig(filename=f"{rawFile}.log", level=logging.DEBUG)
 
 if(args.extract_subs_mkv):
     extractSrtFromMkv()
@@ -327,8 +325,8 @@ makeDirs()
 try:
     mainSplitWithOffset()
 except Exception as e:
-    print("EXCEPTION occured while splitting")
-    print(e)
+    logging.error(datetime.now().strftime("%b %d,%Y %H:%M:%S")+"EXCEPTION occured while splitting")
+    logging.error(e)
     pass
 if(os.path.exists(f"{filename}_temp-audio.m4a")):
     lastFileName = os.listdir(f"./{splitOffset}")[-1]
@@ -345,3 +343,4 @@ if(not args.no_cleanup):
 
 elapsed = timeit.default_timer() - start_time
 print(f"Completed! took {elapsed} amount of time")
+logging.info(f"{datetime.now().strftime('%b %d,%Y %H:%M:%S')} Completed! took {elapsed} amount of time")
