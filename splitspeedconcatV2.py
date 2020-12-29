@@ -338,7 +338,7 @@ except Exception as e:
 if(os.path.exists(f"{rawFile}_temp-audio.m4a")):
     logging.info("temp audio file exists, attempting to burn it to last split file")
     lastFileName = os.listdir(f"./{splitOffset}")[-1]
-    subprocess.call(f"ffmpeg -i ./{splitOffset}/{lastFileName} -i {filename}_temp-audio.m4a -c copy -map 0:v:0 -map 1:a:0 {lastFileName}", shell=True)
+    subprocess.call(f"ffmpeg -i ./{splitOffset}/{lastFileName} -i {rawFile}_temp-audio.m4a -c copy -map 0:v:0 -map 1:a:0 {lastFileName}", shell=True)
     subprocess.call(f"rm ./{splitOffset}/{lastFileName}", shell=True)
     subprocess.call(f"mv {lastFileName} ./{splitOffset}/{lastFileName}", shell=True)
 else:
