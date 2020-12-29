@@ -269,6 +269,7 @@ parser.add_argument('-s','--subtitle_file', type=str,  help='the subtitle file t
 parser.add_argument('-emkv','--extract_subs_mkv', action='store_true', help='extract subs from mkv')
 parser.add_argument('-ds','--dialogue_speed', type=str,  help='the speed when someone is speaking')
 parser.add_argument('-ss','--silence_speed', type=str,  help='the speed when theres silence')
+parser.add_argument('--offset', type=str,  help='optional offset to tweak the split')
 parser.add_argument('-b','--burn_subtitles', action='store_true', help='the speed when theres silence')
 parser.add_argument('--use_slower_split', action='store_true', help='use this option if the default split gives incorrect results')
 parser.add_argument('--no_cleanup', action='store_true', help='do not run cleanup after completion')
@@ -300,7 +301,12 @@ outputFileName = rawFile + '_output.mp4'
 sped = rawFile + 'sped'
 dspeed = float(args.dialogue_speed)
 sspeed = float(args.silence_speed)
-offset = 10
+
+if(args.offset):
+    offset = int(args.offset)
+else:
+    offset = 10
+
 if(args.use_slower_split):
     offset = 0
 
