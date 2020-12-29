@@ -334,11 +334,15 @@ except Exception as e:
     logging.error(datetime.now().strftime("%b %d,%Y %H:%M:%S")+"EXCEPTION occured while splitting")
     logging.error(e)
     pass
-if(os.path.exists(f"{filename}_temp-audio.m4a")):
+
+if(os.path.exists(f"{rawFile}_temp-audio.m4a")):
+    logging.info("temp audio file exists, attempting to burn it to last split file")
     lastFileName = os.listdir(f"./{splitOffset}")[-1]
     subprocess.call(f"ffmpeg -i ./{splitOffset}/{lastFileName} -i {filename}_temp-audio.m4a -c copy -map 0:v:0 -map 1:a:0 {lastFileName}", shell=True)
     subprocess.call(f"rm ./{splitOffset}/{lastFileName}", shell=True)
     subprocess.call(f"mv {lastFileName} ./{splitOffset}/{lastFileName}", shell=True)
+else:
+    logging.info("temp audio file doesn't exist. Moving to next step")
 
 mainSpeedUp(offset)
 mainConcat()
