@@ -184,7 +184,7 @@ def mainSpeedUp(offset):
         i=i+1   #this isn't the right way to do this but i'm tired
 
 def mainConcat():
-    listOffsetFiles = os.listdir('./'+sped)
+    listOffsetFiles = sorted(os.listdir('./'+sped))
     f = open('mylist.txt', 'w+')
     for idx, file in enumerate(listOffsetFiles):
         f.write('file \''+sped+'/'+file+'\'\n')
