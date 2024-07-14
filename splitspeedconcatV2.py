@@ -98,7 +98,9 @@ def makeSpeedCommand(inFile, outFile, dspeed, sspeed, offset):
     return command
 
 def mainSplitWithOffset():
+    logging.info("Starting mainSplitWithOffset")
     if(not args.continue_previous or not os.path.exists(splitOffset)):
+        logging.info(f"Creating directory: {splitOffset}")
         os.mkdir(splitOffset)
     listOfTimes = []
 
@@ -110,60 +112,78 @@ def mainSplitWithOffset():
         else:
             lastEnd = listOfTimes[-1][1]
         diff = sub.start - lastEnd
+        logging.debug(f"Subtitle {idx}: start={sub.start}, end={sub.end}, lastEnd={lastEnd}, diff={diff}")
         #if next subtitle is apart by just 1 sec, ignore the gap
         if((diff.seconds==0 and idx!=0) or (diff < pysrt.srttime.SubRipTime(0,0,0,0))):
             listOfTimes[-1][1] = sub.end
+            logging.debug(f"Updated last end time to {sub.end}")
             continue
         listOfTimes.append([sub.start,sub.end])
+        logging.debug(f"Appended subtitle times: start={sub.start}, end={sub.end}")
 
     i=0
     isInit = True
     for idx, t in enumerate(listOfTimes):
-        logging.info(datetime.now().strftime("%b %d,%Y %H:%M:%S")+'Splitting progress: '+str(idx)+'/'+str(len(listOfTimes)))
+        logging.info(datetime.now().strftime("%b %d,%Y %H:%M:%S")+' Splitting progress: '+str(idx)+'/'+str(len(listOfTimes)))
         startSecs = timeToSecs(t[0])
         endSecs = timeToSecs(t[1])
+        logging.debug(f"Processing time range: startSecs={startSecs}, endSecs={endSecs}, offset={offset}")
         if(startSecs>=offset):
             #split using command
             isInit = False
+            logging.debug("Offset reached, switching to non-initial split")
 
-        #fot the gaps
+        #for the gaps
         if(idx==0):
             if(isInit):
                 command = makeSplitCommand(pysrt.srttime.SubRipTime(0,0,0,0),t[0],'s', "{0:0=5d}".format(i))
+                logging.debug(f"Initial gap split command: {command}")
                 if(command):
                     subprocess.call(command, shell=True)
             else:
                 targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4'
+                logging.debug(f"Initial gap target name: {targetName}")
                 if(not args.continue_previous or not os.path.exists(targetName)):
                     if(args.use_slower_split):
+                        logging.debug("Using slower split for initial gap")
                         slowerSplit(timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)),startSecs, targetName)
                     else:
+                        logging.debug("Using ffmpeg_extract_subclip for initial gap")
                         ffmpeg_extract_subclip(filename, timeToSecs(pysrt.srttime.SubRipTime(0,0,0,0)), startSecs, targetname=targetName)
         else:
             targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_s.mp4'
+            logging.debug(f"Gap target name: {targetName}")
             if(not args.continue_previous or not os.path.exists(targetName)):
                 if(isInit):
                     command = makeSplitCommand(listOfTimes[idx-1][1],t[0],'s', "{0:0=5d}".format(i))
+                    logging.debug(f"Gap split command: {command}")
                     subprocess.call(command, shell=True)
                 else:
                     if(args.use_slower_split):
+                        logging.debug("Using slower split for gap")
                         slowerSplit(timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetName)
                     else:
+                        logging.debug("Using ffmpeg_extract_subclip for gap")
                         ffmpeg_extract_subclip(filename, timeToSecs(listOfTimes[idx-1][1]) - offset, startSecs, targetname=targetName)
         i=i+1
         #for the dialogs
         if(isInit):
             command = makeSplitCommand(t[0],t[1],'d', "{0:0=5d}".format(i))
+            logging.debug(f"Dialog split command: {command}")
             if(command):
                 subprocess.call(command, shell=True)
         else:
             targetName = splitOffset+"/"+"{0:0=5d}".format(i)+'_d.mp4'
+            logging.debug(f"Dialog target name: {targetName}")
             if(not args.continue_previous or not os.path.exists(targetName)):
                 if(args.use_slower_split):
+                    logging.debug("Using slower split for dialog")
                     slowerSplit(startSecs - offset, endSecs, targetName)
                 else:
+                    logging.debug("Using ffmpeg_extract_subclip for dialog")
                     ffmpeg_extract_subclip(filename, startSecs - offset, endSecs, targetname=targetName)
         i=i+1
+    logging.info("Completed mainSplitWithOffset")
 
 def mainSpeedUp(offset):
     #TODO: handle initsplit from different folder too
@@ -254,7 +274,7 @@ def mainCleanup():
 def mainBurnSubtitles():
     if(args.continue_previous and os.path.exists(filename)):
         return
-    command = 'ffmpeg -i '+rawFile+' -vcodec libx264 -crf 27 -preset ultrafast -c:a copy -vf subtitles='+srtFile+' '+filename
+    command = 'ffmpeg -i '+rawFile+' -vcodec libx264 -crf 27 -preset ultrafast -c:a aac -vf subtitles='+srtFile+' '+filename
     subprocess.call(command, shell=True)
 
 def extractSrtFromMkv():
