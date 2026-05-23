@@ -1,50 +1,59 @@
 # Smart Fast Forward for Movies and TV shows
 
-This program provides a way to convert any movie or tv show episode and fast forward it such that parts where noone speaks is sped up, and part where someone is speaking is not.
-This allows us to watch a movie quickly and without missing out any dialogues.
+This program takes a movie or TV episode and re-encodes it so silent parts (gaps between subtitles) play faster than dialogue parts. You watch quickly without missing any spoken lines.
 
-Some prerequisites needed:
-  - ffmpeg: this is an open source video software to work with video/audio
-  - pysrt: this python library is required to work with srt files
-  - moviepy: python library for ffmpeg
+Everything runs in a single `ffmpeg` invocation — the input is decoded once, subtitles are burned once, segments are stitched with the `concat` filter. There are no intermediate chunk files on disk.
 
+## Requirements
 
-### Installation
+- `ffmpeg` (with libass for the `subtitles` filter, libx264 for encoding)
+- Python 3.8+
+- `pysrt` (`pip install pysrt`)
 
-**ffmpeg**
-Full installation guide:
-https://github.com/adaptlearning/adapt_authoring/wiki/Installing-FFmpeg
+## Usage
 
-**pysrt**
 ```sh
-$ pip install pysrt
+python splitspeedconcatV2.py -i <video> -s <subs.srt> -ds <dialog_speed> -ss <silence_speed> [-b] [--high_quality]
 ```
 
-**moviepy**
+Common invocations:
+
 ```sh
-$ pip install moviepy
+# Use an external .srt, burn subtitles in, default (fast) quality
+python splitspeedconcatV2.py -i episode.mkv -s episode.srt -ds 1.5 -ss 3.0 -b
+
+# Pull the second embedded SRT track out of an mkv and use it
+python splitspeedconcatV2.py -i episode.mkv -emkv --subtitle_track 1 -ds 1.5 -ss 3.0 -b
+
+# Same, but encode at near-source quality (≈8× slower)
+python splitspeedconcatV2.py -i episode.mkv -s episode.srt -ds 1.5 -ss 3.0 -b --high_quality
+
+# Power-user: dial in your own libx264 settings
+python splitspeedconcatV2.py -i episode.mkv -s episode.srt -ds 1.5 -ss 3.0 -b --crf 20 --preset veryfast
 ```
 
-### Usage
+## Flags
 
-Run the following command to get help:
-```sh
-$ python splitspeedconcatV2.py --help
-  -h, --help            show this help message and exit
-  -i INPUT_FILE, --input_file INPUT_FILE
-                        the video file you want modified
-  -s SUBTITLE_FILE, --subtitle_file SUBTITLE_FILE
-                        the subtitle file to be process on
-  -emkv EXTRACT_SUBS_MKV, --extract_subs_mkv EXTRACT_SUBS_MKV
-                        extract subs from mkv
-  -ds DIALOGUE_SPEED, --dialogue_speed DIALOGUE_SPEED
-                        the speed when someone is speaking
-  -ss SILENCE_SPEED, --silence_speed SILENCE_SPEED
-                        the speed when there is silence
-  -b BURN_SUBTITLES, --burn_subtitles BURN_SUBTITLES
-                        the speed when theres silence
-  --use_slower_split USE_SLOWER_SPLIT
-                        use this option if the default split gives incorrect results
-  --no_cleanup NO_CLEANUP
-                        do not run cleanup after completion
-```
+| flag | what it does |
+|---|---|
+| `-i, --input_file` | input video |
+| `-s, --subtitle_file` | external SRT (skip with `-emkv`) |
+| `-emkv, --extract_subs_mkv` | extract an embedded SRT from the input mkv |
+| `--subtitle_track N` | which subtitle stream to extract (0-indexed within subtitle streams, default 0) |
+| `-ds, --dialogue_speed` | playback speed during subtitled segments (e.g. `1.5`) |
+| `-ss, --silence_speed` | playback speed during gaps (e.g. `3.0`) |
+| `-b, --burn_subtitles` | burn subtitles into the video |
+| `-o, --output` | output path (default `<input>_output.mp4`) |
+| `--crf` | libx264 CRF, lower = better quality (default 27) |
+| `--preset` | libx264 preset (default `ultrafast`) |
+| `--high_quality` | shorthand for `--crf 18 --preset medium` (near-source quality, much slower) |
+| `--no_cleanup` | keep temp workdir for inspection |
+
+## Approximate throughput
+
+Tested on Apple M4 (10 cores) with a 24-minute HEVC 1080p episode (1431s source → 870s output):
+
+| settings | wall | output size |
+|---|---|---|
+| default (crf 27, ultrafast) | ~100s | ~440 MB |
+| `--high_quality` (crf 18, medium) | ~810s | ~470 MB |
