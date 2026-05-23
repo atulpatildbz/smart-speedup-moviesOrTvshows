@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Test inputs / outputs
+test.mkv
+*.log
+*_output.mp4
+*_output_hq.mp4
+subs.srt
+subs_full.srt
+
+# Benchmark scratch dirs
+bench_work/
+test_work/
