@@ -30,11 +30,13 @@ class PGSReader:
         return cls(bytes_)
 
     def iter_segments(self):
-        bytes_ = self.bytes[:]
-        while bytes_:
-            size = 13 + int(bytes_[11:13].hex(), 16)
-            yield self.make_segment(bytes_[:size])
-            bytes_ = bytes_[size:]
+        # Walk by offset; re-slicing the remaining bytes each time copies the
+        # whole file per segment, which is quadratic on a 30MB+ .sup.
+        pos = 0
+        while pos < len(self.bytes):
+            size = 13 + int(self.bytes[pos+11:pos+13].hex(), 16)
+            yield self.make_segment(self.bytes[pos:pos+size])
+            pos += size
 
     def iter_displaysets(self):
         ds = []

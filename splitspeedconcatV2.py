@@ -21,6 +21,8 @@ from datetime import datetime
 
 import pysrt
 
+from pgsreader import PGSReader
+
 
 def time_to_secs(t):
     return t.hours * 3600 + t.minutes * 60 + t.seconds + t.milliseconds / 1000
@@ -102,11 +104,10 @@ def af_atempo(speed):
     return ','.join(parts)
 
 
-def build_filtergraph(chunks, srt_path, dspeed, sspeed, burn):
+def build_filtergraph(chunks, vsrc, dspeed, sspeed):
+    """vsrc is the video source plus any burn-in filter, ending in ',' if a
+    filter is present, e.g. '[0:v]' or '[0:v]subtitles=x.srt,'."""
     n = len(chunks)
-    vsrc = '[0:v]'
-    if burn:
-        vsrc += 'subtitles=%s,' % srt_path
     vsrc += 'split=%d' % n + ''.join('[b%d]' % i for i in range(n))
     parts = [
         vsrc,
@@ -129,14 +130,73 @@ def build_filtergraph(chunks, srt_path, dspeed, sspeed, burn):
     return ';'.join(parts)
 
 
+def get_sub_codec(input_path, track):
+    out = subprocess.check_output([
+        'ffprobe', '-v', 'error',
+        '-select_streams', 's:%d' % track,
+        '-show_entries', 'stream=codec_name',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        input_path,
+    ])
+    return out.decode().strip()
+
+
+def pgs_to_srt(sup_path, srt_path):
+    """Write an SRT holding only the cue timings of a PGS (.sup) stream.
+
+    PGS stores each subtitle as an image, but the timings are plain data:
+    every display set starts with a PCS whose PTS is when it takes effect.
+    A PCS with composition objects shows a new image (replacing whatever was
+    on screen); one with zero objects clears the screen. Text would need OCR,
+    so cues get placeholder text. That means SDH-only cues like [MUSIC]
+    can't be dropped by clean_srt_content and count as dialog.
+
+    UNTESTED: written without a PGS-subtitled MKV to try it on. Verify the
+    speed map and burned-in subs on a real file before relying on it.
+    """
+    subs = pysrt.SubRipFile()
+    open_start = None
+    for ds in PGSReader(sup_path).iter_displaysets():
+        if not ds.pcs:
+            continue
+        pcs = ds.pcs[0]
+        t = pcs.presentation_timestamp  # ms
+        if open_start is not None and t > open_start:
+            # Refreshes (acquisition points) close and reopen the same cue at
+            # the same image; compute_chunks merges the abutting pieces.
+            subs.append(pysrt.SubRipItem(
+                len(subs) + 1,
+                pysrt.SubRipTime(milliseconds=int(open_start)),
+                pysrt.SubRipTime(milliseconds=int(t)),
+                'PGS',
+            ))
+        open_start = t if pcs._num_comps > 0 else None
+    subs.save(srt_path, encoding='utf-8')
+    return len(subs)
+
+
 def extract_subs_from_mkv(input_path, track, out_path):
+    """Extract embedded sub stream `track` to SRT at out_path. Returns True
+    if the stream is PGS (image-based), whose SRT then has timings only."""
+    codec = get_sub_codec(input_path, track)
+    is_pgs = codec == 'hdmv_pgs_subtitle'
+    if is_pgs:
+        # ffmpeg can't convert image subs to text; copy the raw stream out and
+        # read the timings ourselves.
+        sup_path = os.path.splitext(out_path)[0] + '.sup'
+        src_args, dst = ['-c', 'copy'], sup_path
+    else:
+        src_args, dst = ['-c', 'srt'], out_path
     subprocess.check_call([
         'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
         '-i', input_path,
         '-map', '0:s:%d' % track,
-        '-c', 'srt',
-        out_path,
-    ])
+    ] + src_args + [dst])
+    if is_pgs:
+        n = pgs_to_srt(sup_path, out_path)
+        print('Subtitle track %d is PGS: read %d cue timings (no text)' % (track, n))
+        logging.info('PGS subtitle track %d: %d cues', track, n)
+    return is_pgs
 
 
 def main():
@@ -165,9 +225,10 @@ def main():
 
     workdir = tempfile.mkdtemp(prefix='ssfwd_')
     try:
+        is_pgs = False
         if args.extract_subs_mkv:
             srt_in = os.path.join(workdir, 'subs.srt')
-            extract_subs_from_mkv(raw, args.subtitle_track, srt_in)
+            is_pgs = extract_subs_from_mkv(raw, args.subtitle_track, srt_in)
         else:
             if not args.subtitle_file:
                 sys.exit('--subtitle_file is required when -emkv is not given')
@@ -187,10 +248,18 @@ def main():
         logging.info('Duration: %.2fs, chunks: %d (dialog=%d, silence=%d)', duration, len(chunks), n_d, n_s)
         print('Computed %d chunks (%d dialog, %d silence) over %.1fs of video' % (len(chunks), n_d, n_s, duration))
 
+        vsrc = '[0:v]'
+        if args.burn_subtitles and is_pgs:
+            # The subtitles filter only renders text; overlay draws the PGS
+            # images directly. Assumes the PGS canvas matches the video size
+            # (normally both 1920x1080); otherwise it needs a scale2ref.
+            # UNTESTED on a real PGS file, see pgs_to_srt.
+            vsrc += '[0:s:%d]overlay,' % args.subtitle_track
+        elif args.burn_subtitles:
+            vsrc += 'subtitles=%s,' % clean_srt_path
         filtergraph = build_filtergraph(
-            chunks, clean_srt_path,
+            chunks, vsrc,
             args.dialogue_speed, args.silence_speed,
-            burn=args.burn_subtitles,
         )
 
         if args.high_quality:
