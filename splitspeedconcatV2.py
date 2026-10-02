@@ -104,14 +104,14 @@ def af_atempo(speed):
     return ','.join(parts)
 
 
-def build_filtergraph(chunks, vsrc, dspeed, sspeed):
+def build_filtergraph(chunks, vsrc, dspeed, sspeed, audio_track=0):
     """vsrc is the video source plus any burn-in filter, ending in ',' if a
     filter is present, e.g. '[0:v]' or '[0:v]subtitles=x.srt,'."""
     n = len(chunks)
     vsrc += 'split=%d' % n + ''.join('[b%d]' % i for i in range(n))
     parts = [
         vsrc,
-        '[0:a]asplit=%d' % n + ''.join('[ain%d]' % i for i in range(n)),
+        '[0:a:%d]asplit=%d' % (audio_track, n) + ''.join('[ain%d]' % i for i in range(n)),
     ]
     cat = []
     for i, (kind, start, end) in enumerate(chunks):
@@ -207,6 +207,7 @@ def main():
     parser.add_argument('-s', '--subtitle_file', help='SRT file driving the speed map')
     parser.add_argument('-emkv', '--extract_subs_mkv', action='store_true', help='extract subs from input mkv')
     parser.add_argument('--subtitle_track', type=int, default=0, help='which embedded sub stream to use with -emkv (0-indexed within subtitle streams)')
+    parser.add_argument('--audio_track', type=int, default=0, help='which audio stream to keep (0-indexed within audio streams, default 0)')
     parser.add_argument('-ds', '--dialogue_speed', type=float, required=True, help='speed when someone is speaking')
     parser.add_argument('-ss', '--silence_speed', type=float, required=True, help='speed when there is silence')
     parser.add_argument('-b', '--burn_subtitles', action='store_true', help='burn subtitles into the video')
@@ -247,6 +248,8 @@ def main():
         n_s = sum(1 for k, _, _ in chunks if k == 's')
         logging.info('Duration: %.2fs, chunks: %d (dialog=%d, silence=%d)', duration, len(chunks), n_d, n_s)
         print('Computed %d chunks (%d dialog, %d silence) over %.1fs of video' % (len(chunks), n_d, n_s, duration))
+        out_secs = sum((e - s) / (args.silence_speed if k == 's' else args.dialogue_speed) for k, s, e in chunks)
+        print('Expected output duration: %.1fs' % out_secs, flush=True)
 
         vsrc = '[0:v]'
         if args.burn_subtitles and is_pgs:
@@ -259,7 +262,7 @@ def main():
             vsrc += 'subtitles=%s,' % clean_srt_path
         filtergraph = build_filtergraph(
             chunks, vsrc,
-            args.dialogue_speed, args.silence_speed,
+            args.dialogue_speed, args.silence_speed, args.audio_track,
         )
 
         if args.high_quality:

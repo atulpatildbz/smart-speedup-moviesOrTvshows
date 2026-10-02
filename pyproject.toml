@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-speedup"
+version = "0.2.0"
+description = "Speed up the silent parts of a movie or episode faster than the dialogue"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["pysrt"]
+
+[project.scripts]
+smart-speedup = "splitspeedconcatV2:main"
+
+[tool.setuptools]
+py-modules = ["splitspeedconcatV2", "pgsreader"]

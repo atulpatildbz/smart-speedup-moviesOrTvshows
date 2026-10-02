@@ -10,6 +10,15 @@ Everything runs in a single `ffmpeg` invocation — the input is decoded once, s
 - Python 3.8+
 - `pysrt` (`pip install pysrt`)
 
+## Install
+
+```sh
+uv tool install git+https://github.com/atulpatildbz/smart-speedup-moviesOrTvshows@<commit>
+# or: pip install git+https://github.com/atulpatildbz/smart-speedup-moviesOrTvshows@<commit>
+```
+
+This installs a `smart-speedup` command that takes the same flags as `splitspeedconcatV2.py`.
+
 ## Usage
 
 ```sh
@@ -40,6 +49,7 @@ python splitspeedconcatV2.py -i episode.mkv -s episode.srt -ds 1.5 -ss 3.0 -b --
 | `-s, --subtitle_file` | external SRT (skip with `-emkv`) |
 | `-emkv, --extract_subs_mkv` | extract an embedded SRT from the input mkv |
 | `--subtitle_track N` | which subtitle stream to extract (0-indexed within subtitle streams, default 0) |
+| `--audio_track N` | which audio stream to keep (0-indexed within audio streams, default 0) |
 | `-ds, --dialogue_speed` | playback speed during subtitled segments (e.g. `1.5`) |
 | `-ss, --silence_speed` | playback speed during gaps (e.g. `3.0`) |
 | `-b, --burn_subtitles` | burn subtitles into the video |
