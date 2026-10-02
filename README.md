@@ -19,6 +19,20 @@ uv tool install git+https://github.com/atulpatildbz/smart-speedup-moviesOrTvshow
 
 This installs a `smart-speedup` command that takes the same flags as `splitspeedconcatV2.py`.
 
+## GUI
+
+```sh
+uv tool install "smart-speedup[gui] @ git+https://github.com/atulpatildbz/smart-speedup-moviesOrTvshows@<commit>"
+smart-speedup-gui [video]
+
+# or from a checkout, with pysrt and pywebview installed:
+python -m speedup_gui [video]
+```
+
+Drop in (or choose) a video, pick the audio and subtitle tracks, and drag the speed sliders. A dialogue map of the episode shows where the speech is, along with the resulting runtime. Click or drag on the map to pick a stretch, hit **Preview** to render just that clip and watch it in the app, then **Speed up** for the whole file.
+
+It's a [pywebview](https://pywebview.flowrl.com) window, which uses the system WebKit instead of bundling a browser. It sits at 0% CPU while idle, about 225 MB including WebKit's helper processes.
+
 ## Usage
 
 ```sh
@@ -54,6 +68,8 @@ python splitspeedconcatV2.py -i episode.mkv -s episode.srt -ds 1.5 -ss 3.0 -b --
 | `-ss, --silence_speed` | playback speed during gaps (e.g. `3.0`) |
 | `-b, --burn_subtitles` | burn subtitles into the video |
 | `-o, --output` | output path (default `<input>_output.mp4`) |
+| `--start SECS` | start this far into the input (for previews) |
+| `--duration SECS` | only process this much of the input (for previews) |
 | `--crf` | libx264 CRF, lower = better quality (default 27) |
 | `--preset` | libx264 preset (default `ultrafast`) |
 | `--high_quality` | shorthand for `--crf 18 --preset medium` (near-source quality, much slower) |

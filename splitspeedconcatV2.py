@@ -94,6 +94,16 @@ def compute_chunks(srt_path, duration):
     return chunks
 
 
+def clip_chunks(chunks, start, end):
+    """Keep only the parts of chunks inside [start, end] (for previews)."""
+    out = []
+    for kind, s, e in chunks:
+        s, e = max(s, start), min(e, end)
+        if e > s:
+            out.append((kind, s, e))
+    return out
+
+
 def af_atempo(speed):
     parts = []
     s = speed
@@ -199,6 +209,27 @@ def extract_subs_from_mkv(input_path, track, out_path):
     return is_pgs
 
 
+def speed_map(raw, workdir, subtitle_file=None, subtitle_track=0):
+    """Chunks for `raw` from an external SRT, or from embedded sub stream
+    `subtitle_track` when subtitle_file is None. Returns
+    (chunks, duration, is_pgs, cleaned_srt_path)."""
+    is_pgs = False
+    if subtitle_file:
+        srt_in = subtitle_file
+    else:
+        srt_in = os.path.join(workdir, 'subs.srt')
+        is_pgs = extract_subs_from_mkv(raw, subtitle_track, srt_in)
+
+    duration = get_duration(raw)
+    with open(srt_in, 'r', encoding='utf-8', errors='ignore') as f:
+        content = f.read()
+    content = clean_srt_content(content) + end_subtitle_block(duration)
+    clean_srt_path = os.path.join(workdir, 'cleaned.srt')
+    with open(clean_srt_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    return compute_chunks(clean_srt_path, duration), duration, is_pgs, clean_srt_path
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Modifies a video file to play at different speeds when there is sound vs. silence.'
@@ -212,6 +243,8 @@ def main():
     parser.add_argument('-ss', '--silence_speed', type=float, required=True, help='speed when there is silence')
     parser.add_argument('-b', '--burn_subtitles', action='store_true', help='burn subtitles into the video')
     parser.add_argument('-o', '--output', help='output path (default: <input>_output.mp4)')
+    parser.add_argument('--start', type=float, default=0, help='preview: start this many seconds into the input')
+    parser.add_argument('--duration', type=float, help='preview: only process this many seconds of the input')
     parser.add_argument('--no_cleanup', action='store_true', help='keep temp files after completion')
     parser.add_argument('--crf', type=int, default=27, help='libx264 CRF, lower = better quality (default 27)')
     parser.add_argument('--preset', default='ultrafast', help='libx264 preset (default ultrafast)')
@@ -226,24 +259,15 @@ def main():
 
     workdir = tempfile.mkdtemp(prefix='ssfwd_')
     try:
-        is_pgs = False
-        if args.extract_subs_mkv:
-            srt_in = os.path.join(workdir, 'subs.srt')
-            is_pgs = extract_subs_from_mkv(raw, args.subtitle_track, srt_in)
-        else:
-            if not args.subtitle_file:
-                sys.exit('--subtitle_file is required when -emkv is not given')
-            srt_in = args.subtitle_file
-
-        duration = get_duration(raw)
-        with open(srt_in, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-        content = clean_srt_content(content) + end_subtitle_block(duration)
-        clean_srt_path = os.path.join(workdir, 'cleaned.srt')
-        with open(clean_srt_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        chunks = compute_chunks(clean_srt_path, duration)
+        if not args.extract_subs_mkv and not args.subtitle_file:
+            sys.exit('--subtitle_file is required when -emkv is not given')
+        chunks, duration, is_pgs, clean_srt_path = speed_map(
+            raw, workdir, None if args.extract_subs_mkv else args.subtitle_file, args.subtitle_track)
+        if args.start or args.duration:
+            end = args.start + args.duration if args.duration else duration
+            chunks = clip_chunks(chunks, args.start, end)
+            if not chunks:
+                sys.exit('--start/--duration selects nothing (video is %.1fs)' % duration)
         n_d = sum(1 for k, _, _ in chunks if k == 'd')
         n_s = sum(1 for k, _, _ in chunks if k == 's')
         logging.info('Duration: %.2fs, chunks: %d (dialog=%d, silence=%d)', duration, len(chunks), n_d, n_s)
@@ -272,8 +296,15 @@ def main():
         logging.info('Encoder: libx264 crf=%s preset=%s', crf, preset)
         print('Encoder: libx264 crf=%s preset=%s' % (crf, preset))
 
+        seek = []
+        if args.start or args.duration:
+            # Input-seek so a preview doesn't decode the whole file; -copyts
+            # keeps source timestamps so the trims and subtitles still line up.
+            seek = ['-ss', str(chunks[0][1]), '-t', str(chunks[-1][2] - chunks[0][1]),
+                    '-copyts', '-start_at_zero']
         cmd = [
             'ffmpeg', '-hide_banner', '-loglevel', 'error', '-stats', '-y',
+        ] + seek + [
             '-i', raw,
             '-filter_complex', filtergraph,
             '-map', '[vout]', '-map', '[aout]',

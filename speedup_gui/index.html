@@ -1,0 +1,671 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Smart Speedup</title>
+<style>
+  :root {
+    --bg: #151518;
+    --card: #1f1f24;
+    --card-hi: #26262c;
+    --line: rgba(255, 255, 255, .07);
+    --text: #f2f2f5;
+    --dim: #9a9aa6;
+    --faint: #5d5d68;
+    --accent: #8b7bff;
+    --accent-2: #ff6fa8;
+    --grad: linear-gradient(135deg, var(--accent), var(--accent-2));
+    --ok: #4ad295;
+    --bad: #ff6b6b;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f2f6;
+      --card: #ffffff;
+      --card-hi: #f4f4f8;
+      --line: rgba(0, 0, 0, .08);
+      --text: #1c1c22;
+      --dim: #6c6c78;
+      --faint: #b0b0ba;
+      --accent: #6b57ff;
+      --accent-2: #f2508f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 18px 22px 96px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+  .sub { color: var(--dim); margin-top: 2px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .logo {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--grad);
+    display: grid; place-items: center; box-shadow: 0 6px 18px -6px var(--accent);
+  }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 10px;
+  }
+  .card h2 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); margin: 0 0 12px;
+  }
+  .disabled { opacity: .4; pointer-events: none; transition: opacity .2s; }
+
+  /* file */
+  #drop {
+    border: 1.5px dashed var(--faint); background: transparent; text-align: center;
+    padding: 34px 18px; transition: border-color .15s, background .15s; cursor: pointer;
+  }
+  #drop:hover, #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  #drop .big { font-size: 15px; font-weight: 600; margin: 10px 0 4px; }
+  #file { display: none; gap: 16px; align-items: center; }
+  #file.show { display: flex; }
+  #thumb {
+    width: 144px; aspect-ratio: 16/9; border-radius: 9px; object-fit: cover; flex: none;
+    background: var(--card-hi); box-shadow: 0 8px 20px -10px #000;
+  }
+  #file .name { font-size: 15px; font-weight: 600; word-break: break-word; }
+  #file .meta { color: var(--dim); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  #file .grow { flex: 1; min-width: 0; }
+
+  /* rows */
+  .row { display: flex; align-items: center; gap: 12px; min-height: 34px; }
+  .row + .row { margin-top: 8px; }
+  .row > label:not(.switch) { width: 92px; flex: none; color: var(--dim); }
+  .row > .grow { flex: 1; min-width: 0; }
+
+  select, input[type=text] {
+    width: 100%; height: 32px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card-hi); color: var(--text); font: inherit; padding: 0 10px; outline: none;
+  }
+  select {
+    -webkit-appearance: none; appearance: none; padding-right: 30px; text-overflow: ellipsis;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9aa6' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--accent); }
+
+  button {
+    font: inherit; font-weight: 500; color: var(--text); background: var(--card-hi);
+    border: 1px solid var(--line); border-radius: 8px; height: 32px; padding: 0 14px;
+    cursor: pointer; white-space: nowrap; transition: filter .15s, transform .05s;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .45; pointer-events: none; }
+  button.primary {
+    background: var(--grad); border: 0; color: #fff; font-weight: 600; height: 40px; padding: 0 22px;
+    box-shadow: 0 8px 22px -10px var(--accent-2);
+  }
+  button.big { height: 40px; padding: 0 18px; }
+  button.link { background: none; border: 0; color: var(--accent); padding: 0 4px; height: auto; }
+
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { display: none; }
+  .switch span {
+    position: absolute; inset: 0; border-radius: 11px; background: var(--faint); transition: background .2s;
+  }
+  .switch span::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+    border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(16px); }
+
+  .note { color: var(--dim); font-size: 12px; margin-top: 8px; }
+  .note.warn { color: #f5b14c; }
+
+  /* speeds */
+  .speeds { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .speed .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .speed .val { font-size: 24px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .speed .val small { font-size: 15px; color: var(--dim); font-weight: 600; }
+  .speed .what { color: var(--dim); }
+  .speed .what i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; margin: 12px 0 4px;
+    background: linear-gradient(to right, var(--c) var(--p), var(--card-hi) var(--p)); outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.35), 0 0 0 4px color-mix(in srgb, var(--c) 25%, transparent);
+    cursor: grab;
+  }
+
+  /* timeline */
+  .tl-wrap { margin-top: 16px; }
+  .tl-head { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+  #tl { width: 100%; height: 46px; display: block; border-radius: 8px; cursor: pointer; touch-action: none; }
+  .tl-foot { display: flex; justify-content: space-between; color: var(--faint); font-size: 11px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .estimate {
+    display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .estimate .times { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .estimate .times .arrow { color: var(--faint); margin: 0 8px; }
+  .estimate .times .new { background: var(--grad); -webkit-background-clip: text; color: transparent; }
+  .pill {
+    font-size: 12px; font-weight: 600; color: var(--ok); padding: 4px 10px; border-radius: 99px;
+    background: color-mix(in srgb, var(--ok) 13%, transparent);
+  }
+  .shimmer {
+    height: 46px; border-radius: 8px;
+    background: linear-gradient(90deg, var(--card-hi) 30%, var(--line) 50%, var(--card-hi) 70%);
+    background-size: 300% 100%; animation: sh 1.4s linear infinite;
+  }
+  .shimmer.still { animation: none; }
+  @keyframes sh { from { background-position: 100% 0 } to { background-position: 0 0 } }
+
+  /* segmented */
+  .seg { display: flex; background: var(--card-hi); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; height: auto; padding: 7px 8px; border: 0; background: none; border-radius: 8px; text-align: center;
+  }
+  .seg button b { display: block; font-weight: 600; }
+  .seg button span { display: block; font-size: 11px; color: var(--dim); margin-top: 1px; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .seg button.on b { color: var(--accent); }
+  .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path small { color: var(--dim); font-size: 12px; margin-left: 6px; }
+
+  /* action bar */
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 22px 18px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px); border-top: 1px solid var(--line);
+  }
+  .bar > div { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .bar .spacer { flex: 1; }
+  .pv { display: flex; align-items: center; gap: 6px; color: var(--dim); }
+  .pv input { width: 64px; text-align: center; height: 32px; }
+  .pv select { width: 72px; }
+  #progress { display: none; }
+  .bar.running #idle { display: none; }
+  .bar.running #progress { display: flex; }
+  .prog { flex: 1; }
+  .prog .label { display: flex; justify-content: space-between; margin-bottom: 7px; font-variant-numeric: tabular-nums; }
+  .prog .label b { font-weight: 600; }
+  .prog .label span { color: var(--dim); }
+  .track { height: 6px; border-radius: 3px; background: var(--card-hi); overflow: hidden; }
+  .fill { height: 100%; width: 0; background: var(--grad); border-radius: 3px; transition: width .3s ease; }
+
+  /* toast / details */
+  #toast {
+    position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 5;
+    width: min(calc(100vw - 44px), 560px); box-shadow: 0 16px 40px -12px rgba(0,0,0,.5);
+    display: none; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px;
+    background: color-mix(in srgb, var(--ok) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+  }
+  #toast.bad { background: color-mix(in srgb, var(--bad) 12%, var(--card)); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+  #toast.show { display: flex; animation: up .25s ease; }
+  @keyframes up { from { opacity: 0; transform: translate(-50%, 8px) } }
+  #toast .x { color: var(--dim); }
+  #toast .msg { flex: 1; }
+  details { margin-top: 4px; color: var(--dim); }
+  details summary { cursor: pointer; font-size: 12px; outline: none; }
+  pre {
+    font: 11px/1.5 ui-monospace, Menlo, monospace; background: var(--card-hi); border-radius: 8px; padding: 10px 12px;
+    max-height: 180px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; -webkit-user-select: text;
+  }
+
+  /* modal */
+  .modal {
+    position: fixed; inset: 0; display: none; place-items: center; z-index: 10;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .modal.show { display: grid; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0 } }
+  .sheet {
+    width: min(92vw, 860px); background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 30px 80px -20px #000;
+  }
+  .sheet video { width: 100%; display: block; background: #000; max-height: 70vh; }
+  .sheet .foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+  .sheet .foot .t { flex: 1; color: var(--dim); }
+  .sheet.small { width: 380px; padding: 20px; }
+  .sheet.small h3 { margin: 0 0 6px; font-size: 15px; }
+  .sheet.small p { margin: 0 0 18px; color: var(--dim); word-break: break-word; }
+  .sheet.small .btns { display: flex; justify-content: flex-end; gap: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M3 5.5v13a1 1 0 0 0 1.55.83L13 13.7v4.8a1 1 0 0 0 1.55.83l9-6.5a1 1 0 0 0 0-1.66l-9-6.5A1 1 0 0 0 13 5.5v4.8L4.55 4.67A1 1 0 0 0 3 5.5z"/></svg>
+    </div>
+    <div>
+      <h1>Smart Speedup</h1>
+      <div class="sub">Silence goes fast. Dialogue stays clear.</div>
+    </div>
+  </header>
+
+  <div id="toast"><div class="msg"></div><button class="link" id="toastAct"></button><button class="link x" onclick="$('toast').className=''">✕</button></div>
+
+  <section class="card" id="drop" onclick="pickVideo()">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M7 4v5M12 4v5M17 4v5"/></svg>
+    <div class="big">Drop a movie or episode here</div>
+    <div class="sub">MKV, MP4, MOV… &nbsp;or&nbsp; <span style="color:var(--accent);font-weight:500">choose a file</span></div>
+  </section>
+
+  <section class="card" id="file">
+    <img id="thumb" alt="">
+    <div class="grow">
+      <div class="name" id="fname"></div>
+      <div class="meta" id="fmeta"></div>
+    </div>
+    <button onclick="pickVideo()">Change…</button>
+  </section>
+
+  <div id="settings" class="disabled">
+    <section class="card">
+      <h2>Tracks</h2>
+      <div class="row"><label>Audio</label><div class="grow"><select id="audio"></select></div></div>
+      <div class="row"><label>Subtitles</label><div class="grow"><select id="subs"></select></div></div>
+      <div class="row" id="srtRow" style="display:none">
+        <label></label>
+        <div class="grow path" id="srtPath"><small style="margin:0">No file chosen</small></div>
+        <button onclick="pickSrt()">Choose…</button>
+      </div>
+      <div class="row">
+        <label>Burn in</label>
+        <div class="grow sub">Draw the subtitles onto the video</div>
+        <label class="switch"><input type="checkbox" id="burn" checked><span></span></label>
+      </div>
+      <div class="note warn" id="pgsNote" style="display:none">
+        This is an image-based (PGS) track, so every cue counts as dialogue, including [MUSIC]-style captions.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Speed</h2>
+      <div class="speeds">
+        <div class="speed">
+          <div class="top">
+            <div class="what"><i style="background:var(--accent)"></i>Dialogue</div>
+            <div class="val"><span id="dsv"></span><small>×</small></div>
+          </div>
+          <input type="range" id="ds" min="1" max="2.5" step="0.05" value="1.5" style="--c:var(--accent)">
+        </div>
+        <div class="speed">
+          <div class="top">
+            <div class="what"><i style="background:var(--accent-2)"></i>Silence</div>
+            <div class="val"><span id="ssv"></span><small>×</small></div>
+          </div>
+          <input type="range" id="ss" min="1" max="8" step="0.25" value="3.5" style="--c:var(--accent-2)">
+        </div>
+      </div>
+
+      <div class="tl-wrap">
+        <div class="tl-head"><span>Dialogue map. Click or drag to choose the preview clip.</span><span id="tlInfo"></span></div>
+        <div id="tlBox"><div class="shimmer still"></div></div>
+        <div class="tl-foot"><span>0:00</span><span id="tlEnd"></span></div>
+      </div>
+
+      <div class="estimate">
+        <div class="times"><span id="estOld">–</span><span class="arrow">→</span><span class="new" id="estNew">–</span></div>
+        <div class="pill" id="estSave" style="visibility:hidden"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Output</h2>
+      <div class="seg" id="quality">
+        <button data-q="fast" class="on"><b>Fast</b><span>CRF 27 · ultrafast</span></button>
+        <button data-q="balanced"><b>Balanced</b><span>CRF 23 · veryfast</span></button>
+        <button data-q="high"><b>High</b><span>CRF 18 · ~8× slower</span></button>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <label>Save to</label>
+        <div class="grow path" id="outPath"></div>
+        <button onclick="pickOutput()">Change…</button>
+      </div>
+      <details id="details" style="display:none"><summary>Log</summary><pre id="log"></pre></details>
+    </section>
+  </div>
+</main>
+
+<div class="bar" id="bar">
+  <div id="idle">
+    <div class="pv">
+      Preview from <input type="text" id="pstart" value="0:00"> for
+      <select id="plen"><option value="30">30s</option><option value="60" selected>60s</option><option value="120">2m</option><option value="300">5m</option></select>
+    </div>
+    <button class="big" id="previewBtn" onclick="run(true)" disabled>
+      <svg width="11" height="11" viewBox="0 0 10 10" style="margin-right:6px;vertical-align:-1px"><path d="M1 0.5v9l8-4.5z" fill="currentColor"/></svg>Preview
+    </button>
+    <div class="spacer"></div>
+    <button class="primary" id="runBtn" onclick="run(false)" disabled>Speed up</button>
+  </div>
+  <div id="progress">
+    <div class="prog">
+      <div class="label"><b id="progTitle"></b><span id="progInfo"></span></div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+    <button class="big" onclick="api().cancel()">Cancel</button>
+  </div>
+</div>
+
+<div class="modal" id="player" onclick="if (event.target === this) closePlayer()">
+  <div class="sheet">
+    <video id="video" controls playsinline></video>
+    <div class="foot">
+      <div class="t" id="playerInfo"></div>
+      <button onclick="api().open_external(null)">Open in player</button>
+      <button class="primary" style="height:32px" onclick="closePlayer()">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirm">
+  <div class="sheet small">
+    <h3>Replace existing file?</h3>
+    <p id="confirmText"></p>
+    <div class="btns">
+      <button onclick="confirmed(false)">Cancel</button>
+      <button class="primary" style="height:32px" onclick="confirmed(true)">Replace</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const api = () => window.pywebview.api;
+const S = { file: null, map: null, srt: null, quality: 'fast', pstart: 0, logCount: 0, mapToken: 0 };
+
+function fmt(secs) {
+  secs = Math.max(0, Math.round(secs));
+  const h = Math.floor(secs / 3600), m = Math.floor(secs % 3600 / 60), s = secs % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+function human(secs) {
+  if (secs < 90) return `${Math.round(secs)}s`;
+  const m = Math.round(secs / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m} min`;
+}
+function parseTime(t) {
+  return t.trim().split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+}
+function toast(msg, kind, action, onAction) {
+  const t = $('toast');
+  t.className = 'show' + (kind === 'bad' ? ' bad' : '');
+  t.querySelector('.msg').textContent = msg;
+  $('toastAct').textContent = action || '';
+  $('toastAct').style.display = action ? '' : 'none';
+  $('toastAct').onclick = onAction;
+}
+function err(e) { toast(e && e.message ? e.message : String(e), 'bad'); }
+
+/* ── file ─────────────────────────────────────────────────────────── */
+
+async function pickVideo() {
+  try { const f = await api().pick_video(); if (f) show(f); } catch (e) { err(e); }
+}
+async function loadPath(path) {
+  try { show(await api().load(path)); } catch (e) { err(e); }
+}
+function show(f) {
+  S.file = f; S.srt = null;
+  $('toast').className = '';
+  $('drop').style.display = 'none';
+  $('file').classList.add('show');
+  $('thumb').src = f.thumb || '';
+  $('fname').textContent = f.name;
+  $('fmeta').textContent = `${fmt(f.duration)} · ${f.size} · ${Math.round(f.fps * 100) / 100} fps`;
+  $('audio').innerHTML = f.audio.map((a, i) => `<option value="${i}">${esc(a)}</option>`).join('');
+  $('audio').value = f.audio_default;
+  $('subs').innerHTML = f.subs.map((s, i) => `<option value="${i}">${esc(s)}</option>`).join('')
+    + `<option value="ext">External .srt file…</option>`;
+  $('subs').value = f.subs_default >= 0 ? f.subs_default : 'ext';
+  setPath($('outPath'), f.output);
+  $('tlEnd').textContent = fmt(f.duration);
+  $('estOld').textContent = fmt(f.duration);
+  $('settings').classList.remove('disabled');
+  S.pstart = Math.round(f.duration * 0.25); S.pickedPreview = false;
+  clampPreview();
+  subsChanged();
+}
+function setPath(el, p) {
+  const i = p.lastIndexOf('/');
+  el.innerHTML = `${esc(p.slice(i + 1))}<small>${esc(p.slice(0, i) || '/')}</small>`;
+  el.title = p;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+/* ── subtitles → speed map ────────────────────────────────────────── */
+
+function subsChanged() {
+  const ext = $('subs').value === 'ext';
+  $('srtRow').style.display = ext ? '' : 'none';
+  if (ext && !S.srt) { pickSrt(); return; }
+  analyze();
+}
+async function pickSrt() {
+  const p = await api().pick_srt(S.file.path);
+  if (p) { S.srt = p; setPath($('srtPath'), p); }
+  analyze();
+}
+async function analyze() {
+  const token = ++S.mapToken, ext = $('subs').value === 'ext';
+  S.map = null; S.analyzing = !(ext && !S.srt); updateButtons(); drawTimeline(); estimate();
+  if (ext && !S.srt) { $('tlInfo').textContent = 'Choose an .srt file'; return; }
+  $('tlInfo').textContent = 'Reading subtitles…';
+  try {
+    const map = await api().analyze(S.file.path, ext ? 0 : Number($('subs').value), ext ? S.srt : null);
+    if (token !== S.mapToken) return;
+    S.analyzing = false;
+    S.map = map;
+    autoPreview();
+    $('pgsNote').style.display = map.pgs ? '' : 'none';
+    const pct = Math.round(100 * map.dialog_secs / (map.dialog_secs + map.silence_secs));
+    $('tlInfo').textContent = `${pct}% dialogue`;
+  } catch (e) {
+    if (token !== S.mapToken) return;
+    S.analyzing = false;
+    $('tlInfo').textContent = ''; err(e);
+  }
+  updateButtons(); drawTimeline(); estimate();
+}
+
+/* ── speeds, estimate, timeline ───────────────────────────────────── */
+
+function sliders() {
+  for (const id of ['ds', 'ss']) {
+    const el = $(id), p = (el.value - el.min) / (el.max - el.min) * 100;
+    el.style.setProperty('--p', p + '%');
+    $(id + 'v').textContent = Number(el.value).toFixed(2).replace(/0$/, '');
+  }
+  estimate();
+}
+function estimate() {
+  const m = S.map;
+  if (!m) { $('estNew').textContent = '–'; $('estSave').style.visibility = 'hidden'; return; }
+  const out = m.dialog_secs / $('ds').value + m.silence_secs / $('ss').value;
+  const total = m.dialog_secs + m.silence_secs;
+  $('estNew').textContent = fmt(out);
+  $('estSave').textContent = `saves ${human(total - out)} · ${Math.round(100 - out / total * 100)}%`;
+  $('estSave').style.visibility = '';
+}
+
+function drawTimeline() {
+  const box = $('tlBox');
+  if (!S.map) { box.innerHTML = `<div class="shimmer${S.analyzing ? '' : ' still'}"></div>`; return; }
+  let c = $('tl');
+  if (!c) {
+    box.innerHTML = '<canvas id="tl"></canvas>';
+    c = $('tl');
+    let dragging = false;
+    const at = e => {
+      const r = c.getBoundingClientRect();
+      S.pickedPreview = true;
+      S.pstart = (e.clientX - r.left) / r.width * S.file.duration - Number($('plen').value) / 2;
+      clampPreview(); drawTimeline();
+    };
+    c.onpointerdown = e => { dragging = true; c.setPointerCapture(e.pointerId); at(e); };
+    c.onpointermove = e => dragging && at(e);
+    c.onpointerup = () => { dragging = false; };
+  }
+  const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d'), css = getComputedStyle(document.documentElement);
+  const v = n => css.getPropertyValue(n).trim();
+  g.scale(dpr, dpr);
+  const D = S.file.duration, x = t => t / D * w;
+
+  g.save(); g.beginPath(); g.roundRect(0, 0, w, h, 8); g.clip();
+  g.fillStyle = v('--card-hi'); g.fillRect(0, 0, w, h);
+  // silence: a low band in the silence colour; dialogue: full-height blocks
+  g.globalAlpha = .35; g.fillStyle = v('--accent-2'); g.fillRect(0, h / 2 - 3, w, 6);
+  g.globalAlpha = 1; g.fillStyle = v('--accent');
+  for (const [s, e] of S.map.dialog) {
+    g.beginPath(); g.roundRect(x(s), 7, Math.max(x(e) - x(s), 1.5), h - 14, 2); g.fill();
+  }
+
+  // preview window
+  const ps = x(S.pstart), pw = Math.max(x(Number($('plen').value)), 4);
+  g.fillStyle = 'rgba(255,255,255,.14)';
+  g.fillRect(ps, 0, pw, h);
+  g.restore();
+  g.strokeStyle = v('--text'); g.lineWidth = 2;
+  g.beginPath(); g.roundRect(ps + 1, 1, pw - 2, h - 2, 5); g.stroke();
+}
+// Default preview: the window that best mixes dialogue and silence (close to
+// 50/50, several separate lines), skipping intros and end credits, so one
+// clip shows how both speeds feel. Leaves a window the user chose alone.
+function autoPreview() {
+  if (S.pickedPreview || !S.map) return;
+  const len = Number($('plen').value), D = S.file.duration;
+  const lo = D * 0.1, hi = D * 0.85 - len;
+  if (hi <= lo) return;
+  const step = Math.max(2, (hi - lo) / 400);
+  let best = -1;
+  for (let t = lo; t <= hi; t += step) {
+    let talk = 0, lines = 0;
+    for (const [s, e] of S.map.dialog) {
+      if (e <= t) continue;
+      if (s >= t + len) break;
+      talk += Math.min(e, t + len) - Math.max(s, t);
+      lines++;
+    }
+    const score = 1 - Math.abs(talk / len - 0.5) * 2 + 0.3 * Math.min(lines, 6) / 6;
+    if (score > best) { best = score; S.pstart = t; }
+  }
+  clampPreview();
+}
+function clampPreview() {
+  const len = Number($('plen').value), D = S.file ? S.file.duration : 0;
+  S.pstart = Math.round(Math.max(0, Math.min(S.pstart, D - len)));
+  $('pstart').value = fmt(S.pstart);
+}
+
+/* ── run ──────────────────────────────────────────────────────────── */
+
+function updateButtons() {
+  const ok = !!(S.file && S.map);
+  $('previewBtn').disabled = !ok; $('runBtn').disabled = !ok;
+}
+let pendingRun = null;
+async function run(preview) {
+  const ext = $('subs').value === 'ext';
+  const o = {
+    path: S.file.path, audio: Number($('audio').value),
+    sub: ext ? 0 : Number($('subs').value), srt: ext ? S.srt : null,
+    burn: $('burn').checked, ds: Number($('ds').value), ss: Number($('ss').value),
+    quality: S.quality, output: S.file.output, fps: S.file.fps,
+    preview, start: S.pstart, length: Number($('plen').value),
+  };
+  if (!preview && await api().exists(o.output)) {
+    $('confirmText').textContent = o.output;
+    $('confirm').classList.add('show');
+    pendingRun = o;
+    return;
+  }
+  start(o);
+}
+function confirmed(yes) {
+  $('confirm').classList.remove('show');
+  if (yes) start(pendingRun);
+}
+async function start(o) {
+  $('toast').className = '';
+  $('log').textContent = ''; S.logCount = 0;
+  $('details').style.display = '';
+  $('fill').style.width = '0';
+  $('progTitle').textContent = o.preview ? `Rendering preview from ${fmt(o.start)}` : 'Speeding up';
+  $('progInfo').textContent = 'Starting…';
+  $('bar').classList.add('running');
+  $('settings').classList.add('disabled');
+  try { await api().run(o); } catch (e) { finish(); err(e); return; }
+  poll(o);
+}
+async function poll(o) {
+  const st = await api().poll(S.logCount);
+  if (st.log.length) {
+    S.logCount += st.log.length;
+    $('log').textContent += st.log.join('\n') + '\n';
+    $('log').scrollTop = 1e9;
+  }
+  $('fill').style.width = (st.progress * 100) + '%';
+  if (st.progress > 0) {
+    $('progInfo').textContent = `${Math.round(st.progress * 100)}%` + (st.eta != null ? ` · ${fmt(st.eta)} left` : '');
+  }
+  if (!st.done) { setTimeout(() => poll(o), 300); return; }
+  finish();
+  const d = st.done, took = fmt(st.elapsed);
+  if (d.cancelled) toast('Cancelled.', 'bad');
+  else if (!d.ok) { toast('Something went wrong. Check the log below.', 'bad'); $('details').open = true; }
+  else if (d.preview) openPlayer(d.url, `Preview · ${fmt(o.start)}–${fmt(o.start + o.length)} at ${o.ds}× / ${o.ss}× · rendered in ${took}`);
+  else toast(`Done in ${took}. Saved ${d.out.split('/').pop()}`, 'ok', 'Show in Finder', () => api().reveal(d.out));
+}
+function finish() {
+  $('bar').classList.remove('running');
+  $('settings').classList.remove('disabled');
+}
+function openPlayer(url, info) {
+  $('playerInfo').textContent = info;
+  $('video').src = url;
+  $('player').classList.add('show');
+  $('video').play().catch(() => {});
+}
+function closePlayer() {
+  $('video').pause(); $('video').removeAttribute('src'); $('video').load();
+  $('player').classList.remove('show');
+}
+async function pickOutput() {
+  const p = await api().pick_output(S.file.output);
+  if (p) { S.file.output = p; setPath($('outPath'), p); }
+}
+
+/* ── wiring ───────────────────────────────────────────────────────── */
+
+$('ds').oninput = $('ss').oninput = sliders;
+$('subs').onchange = () => { if ($('subs').value === 'ext') S.srt = null; subsChanged(); };
+$('plen').onchange = () => { autoPreview(); clampPreview(); drawTimeline(); };
+$('pstart').onchange = () => {
+  const t = parseTime($('pstart').value);
+  if (!isNaN(t)) { S.pstart = t; S.pickedPreview = true; }
+  clampPreview(); drawTimeline();
+};
+for (const b of $('quality').children) b.onclick = () => {
+  for (const o of $('quality').children) o.classList.toggle('on', o === b);
+  S.quality = b.dataset.q;
+};
+window.addEventListener('resize', drawTimeline);
+document.addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('over'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('drop').classList.remove('over'); });
+document.addEventListener('drop', () => $('drop').classList.remove('over'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePlayer(); $('confirm').classList.remove('show'); } });
+sliders();
+</script>
+</body>
+</html>

@@ -10,8 +10,18 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = ["pysrt"]
 
+[project.optional-dependencies]
+gui = ["pywebview>=5"]
+
 [project.scripts]
 smart-speedup = "splitspeedconcatV2:main"
 
+[project.gui-scripts]
+smart-speedup-gui = "speedup_gui:main"
+
 [tool.setuptools]
 py-modules = ["splitspeedconcatV2", "pgsreader"]
+packages = ["speedup_gui"]
+
+[tool.setuptools.package-data]
+speedup_gui = ["index.html"]
